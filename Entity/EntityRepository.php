@@ -45,12 +45,11 @@ class EntityRepository extends BaseEntityRepository
         if(!$criteriaParser) {
             parent::findOneBy($criteria, $orderBy);
         }
-        $query = $this->getCriteriaParser()->parse($criteria, $orderBy);
 
-        $query
-            ->setMaxResults(1)
-            ->setFirstResult($offset)
-        ;
+        $criteria['_order'] = $orderBy;
+        //$criteria['limit'] = 1;
+        //$criteria['offset'] = 0;
+        $query = $this->getCriteriaParser()->parse($criteria);
 
         return $query->getNativeQuery()->getSingleResult();
     }
@@ -71,12 +70,15 @@ class EntityRepository extends BaseEntityRepository
         if(!$criteriaParser) {
             parent::findBy($criteria, $orderBy, $limit, $offset);
         }
-        $query = $this->getCriteriaParser()->parse($criteria, $orderBy);
 
-        $query
-            ->setMaxResults($limit)
-            ->setFirstResult($offset)
-        ;
+        // merge conditions into criteria.
+        if($orderBy)
+            $criteria['_order'] = $orderBy;
+        if($limit) 
+            $criteria['_limit'] = $limit;
+        if($offset)
+            $criteria['_offset'] = $offset;
+        $query = $this->getCriteriaParser()->parse($criteria);
 
         return $query->getNativeQuery()->getResult();
     }
