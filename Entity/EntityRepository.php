@@ -1,5 +1,5 @@
 <?php
-namespace O3Co\Query\Adapter\DoctrineExtension;
+namespace O3Co\Query\Adapter\DoctrineExtension\Entity;
 
 use Doctrine\ORM\EntityRepository as BaseEntityRepository;
 
