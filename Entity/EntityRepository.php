@@ -6,6 +6,7 @@ use Doctrine\ORM\EntityRepository as BaseEntityRepository;
 use O3Co\Query\Query;
 use O3Co\Query\CriteriaParser;
 use O3Co\Query\Bridge\DoctrineOrm\DoctrineOrmPersister;
+use O3Co\Query\Query\Visitor\FieldResolver\MappedFieldResolver;
 
 /**
  * EntityRepository 
@@ -39,17 +40,14 @@ class EntityRepository extends BaseEntityRepository
      *  
      * Instead of using EntityPersister of UnitOfWork, use O3Co CriteriaParser 
      */
-    public function findOneBy(array $criteria, array $orderBy = null)
+    public function findOneBy(array $criteria, array $orderBy = array())
     {
         $criteriaParser = $this->getCriteriaParser();
         if(!$criteriaParser) {
             parent::findOneBy($criteria, $orderBy);
         }
 
-        $criteria['_order'] = $orderBy;
-        //$criteria['limit'] = 1;
-        //$criteria['offset'] = 0;
-        $query = $this->getCriteriaParser()->parse($criteria);
+        $query = $this->getCriteriaParser()->parse($criteria, $orderBy, 1, 0);
 
         return $query->getNativeQuery()->getSingleResult();
     }
@@ -64,7 +62,7 @@ class EntityRepository extends BaseEntityRepository
      * @access public
      * @return void
      */
-    public function findBy(array $criteria, array $orderBy = null, $limit = null, $offset = null)
+    public function findBy(array $criteria, array $orderBy = array(), $limit = null, $offset = null)
     {
         $criteriaParser = $this->getCriteriaParser();
         if(!$criteriaParser) {
@@ -72,13 +70,7 @@ class EntityRepository extends BaseEntityRepository
         }
 
         // merge conditions into criteria.
-        if($orderBy)
-            $criteria['_order'] = $orderBy;
-        if($limit) 
-            $criteria['_limit'] = $limit;
-        if($offset)
-            $criteria['_offset'] = $offset;
-        $query = $this->getCriteriaParser()->parse($criteria);
+        $query = $this->getCriteriaParser()->parse($criteria, $orderBy, $limit, $offset);
 
         return $query->getNativeQuery()->getResult();
     }
