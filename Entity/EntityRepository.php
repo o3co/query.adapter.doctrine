@@ -96,12 +96,12 @@ class EntityRepository extends BaseEntityRepository
 
         $query = $parsedQuery->getNativeQuery();
 
-		// Check Composite Key or not
-		if($this->getClassMetadata()->isIdentifierComposite) {
-			// Select COUNT
-        	if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT)) {
-        	    $query->setHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT, true);
-        	}
+        // Check Composite Key or not
+        if($this->getClassMetadata()->isIdentifierComposite) {
+            // Select COUNT
+            if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT)) {
+                $query->setHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT, true);
+            }
 
             $platform = $query->getEntityManager()->getConnection()->getDatabasePlatform(); // law of demeter win
 
@@ -111,19 +111,19 @@ class EntityRepository extends BaseEntityRepository
             $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
             $query->setResultSetMapping($rsm);
 
-		} else {
-			// Set Distinct 
-        	if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT)) {
-        	    $query->setHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT, true);
-        	}
+        } else {
+            // Set Distinct 
+            if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT)) {
+                $query->setHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT, true);
+            }
 
-			// Select COUNT
-        	$query->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\CountWalker'));
-		}
+            // Select COUNT
+            $query->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\CountWalker'));
+        }
         $query->setFirstResult(null)->setMaxResults(null);
 
-		// Convert to CountQuery
-		return $query->getSingleScalarResult();
+        // Convert to CountQuery
+        return $query->getSingleScalarResult();
     }
 
     /**
