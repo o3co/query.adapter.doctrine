@@ -1,33 +1,33 @@
 {
-	"name": "o3co/query-adapter-doctrine",
-	"type": "library",
-	"description": "Doctrine Adapater for O3Co Query Component. Library to use O3Co on Doctrine",
-	"keywords": [
-		"php",
-		"query",
+    "name": "o3co/query-adapter-doctrine",
+    "type": "library",
+    "description": "Doctrine Adapater for O3Co Query Component. Library to use O3Co on Doctrine",
+    "keywords": [
+        "php",
+        "query",
         "doctrine2"
-	],
-	"license": "MIT",
-	"require" : {
-		"php" : ">=5.3.2",
-		"o3co/query-core": "~0.2dev"
-	},
-	"require-dev" : {
-		"doctrine/orm" : "~2.2,>=2.2.3"
-	},
+    ],
+    "license": "MIT",
+    "require" : {
+        "php" : ">=5.3.2",
+        "o3co/query-core": "~0.2dev"
+    },
+    "require-dev" : {
+        "doctrine/orm" : "~2.2,>=2.2.3"
+    },
     "suggest": {
-		"o3co/query-bridge-doctrine-orm": "Require when using o3co with Doctrine ORM"
+        "o3co/query-bridge-doctrine-orm": "Require when using o3co with Doctrine ORM"
+    },
+    "autoload": {
+        "psr-4": {
+            "O3Co\\Query\\Adapter\\DoctrineExtension\\": ""
+        }
+    },
+    "minimum-stability": "dev",
+    "extra": {
+        "branch-alias": {
+            "dev-master": "0.2-dev"
+        }
     }
-	"autoload": {
-		"psr-4": {
-			"O3Co\\Query\\Adapter\\DoctrineExtension\\": ""
-		}
-	},
-	"minimum-stability": "dev",
-	"extra": {
-		"branch-alias": {
-			"dev-master": "0.2-dev"
-		}
-	}
 }
 
