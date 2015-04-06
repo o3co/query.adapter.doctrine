@@ -3,6 +3,7 @@ namespace O3Co\Query\Adapter\DoctrineExtension\Entity;
 
 use Doctrine\ORM\EntityRepository as BaseEntityRepository;
 
+use Doctrine\ORM\Query\ResultSetMapping;
 use O3Co\Query\Query;
 use O3Co\Query\CriteriaParser;
 use O3Co\Query\Bridge\DoctrineOrm\DoctrineOrmPersister;
