@@ -3,6 +3,7 @@ namespace O3Co\Query\Adapter\DoctrineExtension\Entity;
 
 use Doctrine\ORM\EntityRepository as BaseEntityRepository;
 
+use Doctrine\ORM\Query\ResultSetMapping;
 use O3Co\Query\Query;
 use O3Co\Query\CriteriaParser;
 use O3Co\Query\Bridge\DoctrineOrm\DoctrineOrmPersister;
@@ -108,7 +109,7 @@ class EntityRepository extends BaseEntityRepository
             $rsm = new ResultSetMapping();
             $rsm->addScalarResult($platform->getSQLResultCasing('dctrn_count'), 'count');
 
-            $query->setHint(Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
+            $query->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
             $query->setResultSetMapping($rsm);
 
         } else {
