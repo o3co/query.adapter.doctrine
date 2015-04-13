@@ -132,7 +132,7 @@ class EntityRepository extends BaseEntityRepository
             }
             throw new \Exception('EntityRepository does not support method "countBy". Please overwrite this method.');
         }
-        $query = $this->createInterfaceQuery($criteria, $orderBy, $limit, $offset);
+        $query = $this->createInterfaceQuery($criteria, array(), null, null);
         $nativeQuery = $query->getNativeQuery();
 
         // Check Composite Key or not
