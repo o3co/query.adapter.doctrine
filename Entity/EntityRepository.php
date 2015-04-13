@@ -5,7 +5,8 @@ use Doctrine\ORM\EntityRepository as BaseEntityRepository;
 
 use Doctrine\ORM\Query\ResultSetMapping;
 use O3Co\Query\Query;
-use O3Co\Query\CriteriaParser;
+use O3Co\Query\Parser as InterfaceQueryParser;
+use O3Co\Query\CriteriaParser as InterfaceCriteriaParser;
 use O3Co\Query\Bridge\DoctrineOrm\DoctrineOrmPersister;
 use O3Co\Query\Query\Visitor\FieldResolver\MappedFieldResolver;
 
@@ -20,13 +21,22 @@ use O3Co\Query\Query\Visitor\FieldResolver\MappedFieldResolver;
  */
 class EntityRepository extends BaseEntityRepository 
 {
+    const CRITERIA_BASE_QUERY = 'query';
     /**
-     * criteriaParser 
+     * interfaceCriteriaParser 
      * 
      * @var \O3Co\Query\CriteriaParser
      * @access private
      */
-    private $criteriaParser;
+    private $interfaceCriteriaParser;
+
+    /**
+     * interfaceQueryParser 
+     * 
+     * @var O3Co\Query\Parser 
+     * @access private
+     */
+    private $interfaceQueryParser;
 
     /**
      * queryPersister 
@@ -36,6 +46,38 @@ class EntityRepository extends BaseEntityRepository
      */
     private $queryPersister;
 
+
+    protected function createInterfaceQuery(array $criteria, array $orderBy, $limit, $offset)
+    {
+        $baseQuery = null;
+        if(isset($criteria[self::CRITERIA_BASE_QUERY])) {
+            $baseQuery = $criteria[self::CRITERIA_BASE_QUERY];
+            unset($criteria[self::CRITERIA_BASE_QUERY]);
+        }
+
+        $query = $this->getInterfaceCriteriaParser()->parse($criteria, $orderBy, $limit, $offset);
+        
+        // Update ConditionalClause with BaseQuery
+        if($baseQuery) {
+            if($queryParser = $this->getInterfaceQueryParser()) {
+                $conditionalClause = $queryParser->parseCondition($baseQuery);
+
+                if($query->getStatement()->hasClause('condition')) {
+                    $criteriaCondition = $query->getStatement()->getClause('condition')->getExpression();
+                    if($criteriaCondition) {
+                        $conditionalClause->add($criteriaCondition->getExpression());
+                    }
+                }
+
+                $query->setClause(
+                        'condition', 
+                        $conditionalClause
+                    );
+            }
+        }
+        return $query;
+    }
+
     /**
      * {@inheritdoc}
      *  
@@ -43,12 +85,11 @@ class EntityRepository extends BaseEntityRepository
      */
     public function findOneBy(array $criteria, array $orderBy = array())
     {
-        $criteriaParser = $this->getCriteriaParser();
-        if(!$criteriaParser) {
-            parent::findOneBy($criteria, $orderBy);
+        if(!$this->getInterfaceCriteriaParser()) {
+            return parent::findOneBy($criteria, $orderBy);
         }
 
-        $query = $this->getCriteriaParser()->parse($criteria, $orderBy, 1, 0);
+        $query = $this->createInterfaceQuery($criteria, $orderBy, 1, 0);
 
         return $query->getNativeQuery()->getSingleResult();
     }
@@ -85,46 +126,43 @@ class EntityRepository extends BaseEntityRepository
      */
     public function countBy(array $criteria)
     {
-        $criteriaParser = $this->getCriteriaParser();
-        if(!$criteriaParser) {
+        if(!$this->getInterfaceCriteriaParser()) {
             if(method_exists(get_parent_class($this), 'conutBy')) {
                 return parent::countBy($criteria);
             }
             throw new \Exception('EntityRepository does not support method "countBy". Please overwrite this method.');
         }
-
-        $parsedQuery = $criteriaParser->parse($criteria);
-
-        $query = $parsedQuery->getNativeQuery();
+        $query = $this->createInterfaceQuery($criteria, $orderBy, $limit, $offset);
+        $nativeQuery = $query->getNativeQuery();
 
         // Check Composite Key or not
         if($this->getClassMetadata()->isIdentifierComposite) {
             // Select COUNT
-            if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT)) {
-                $query->setHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT, true);
+            if ( ! $nativeQuery->getHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT)) {
+                $nativeQuery->setHint(\Doctrine\ORM\Tools\Pagination\CountOutputWalker::HINT_DISTINCT, true);
             }
 
-            $platform = $query->getEntityManager()->getConnection()->getDatabasePlatform(); // law of demeter win
+            $platform = $nativeQuery->getEntityManager()->getConnection()->getDatabasePlatform(); // law of demeter win
 
             $rsm = new ResultSetMapping();
             $rsm->addScalarResult($platform->getSQLResultCasing('dctrn_count'), 'count');
 
-            $query->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
-            $query->setResultSetMapping($rsm);
+            $nativeQuery->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_OUTPUT_WALKER, 'Doctrine\ORM\Tools\Pagination\CountOutputWalker');
+            $nativeQuery->setResultSetMapping($rsm);
 
         } else {
             // Set Distinct 
-            if ( ! $query->getHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT)) {
-                $query->setHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT, true);
+            if ( ! $nativeQuery->getHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT)) {
+                $nativeQuery->setHint(\Doctrine\ORM\Tools\Pagination\CountWalker::HINT_DISTINCT, true);
             }
 
             // Select COUNT
-            $query->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\CountWalker'));
+            $nativeQuery->setHint(\Doctrine\ORM\Query::HINT_CUSTOM_TREE_WALKERS, array('Doctrine\ORM\Tools\Pagination\CountWalker'));
         }
-        $query->setFirstResult(null)->setMaxResults(null);
+        $nativeQuery->setFirstResult(null)->setMaxResults(null);
 
         // Convert to CountQuery
-        return $query->getSingleScalarResult();
+        return $nativeQuery->getSingleScalarResult();
     }
 
     /**
@@ -134,35 +172,83 @@ class EntityRepository extends BaseEntityRepository
      * @access public
      * @return void
      */
-    public function findByQuery(Query $query)
+    public function findByQuery($query)
     {
-        $query->setPersister($this->getPersister());
+        if($query instanceof Query) {
+            $query->setPersister($this->getPersister());
+            return $query->getNativeQUERY->getResult();
+        } else if(is_string($query)) {
+            // parse the query string
+            $queryParser = $this->getInterfaceQueryParser();
+            if($queryParser) {
+                return $queryParser->parse($query)->getNativeQuery()->getResult();
+            }
+        }
 
-        return $query->getNativeQuery()->getResult();
+        throw new \InvalidArgumentException('Unsupported query is given.');
+    }
+
+    public function setInterfaceParser($parser)
+    {
+        if(($parser instanceof InterfaceCriteriaParser) && ($parser instanceof InterfaceQueryParser)) {
+            $parser->setPersister($this->getQueryPersister());
+
+            $this->interfaceCriteriaParser = $parser;
+            $this->interfaceQueryParser = $parser;
+        } else {
+            throw new \InvalidArgumentException('setInterfaceParser requires parser implements both InterfaceCriteriaParser and InterfaceQueryParser.');
+        }
+
+        return $this;
     }
     
     /**
-     * getCriteriaParser 
+     * getInterfaceCriteriaParser 
      * 
      * @access public
      * @return void
      */
-    public function getCriteriaParser()
+    public function getInterfaceCriteriaParser()
     {
-        return $this->criteriaParser;
+        return $this->interfaceCriteriaParser;
     }
     
     /**
-     * setCriteriaParser 
+     * setInterfaceCriteriaParser 
      * 
      * @param \O3Co\Query\CriteriaParser $criteriaParser 
      * @access public
      * @return void
      */
-    public function setCriteriaParser(CriteriaParser $criteriaParser)
+    public function setInterfaceCriteriaParser(InterfaceCriteriaParser $criteriaParser)
     {
-        $this->criteriaParser = $criteriaParser;
-        $this->criteriaParser->setPersister($this->getQueryPersister());
+        $this->interfaceCriteriaParser = $criteriaParser;
+        $this->interfaceCriteriaParser->setPersister($this->getQueryPersister());
+        return $this;
+    }
+
+    /**
+     * getInterfaceQueryParser 
+     * 
+     * @access public
+     * @return void
+     */
+    public function getInterfaceQueryParser()
+    {
+        return $this->interfaceQueryParser;
+    }
+
+    /**
+     * setInterfaceQueryParser 
+     * 
+     * @param InterfaceQueryParser $queryParser 
+     * @access public
+     * @return void
+     */
+    public function setInterfaceQueryParser(InterfaceQueryParser $queryParser)
+    {
+        $this->interfaceQueryParser = $queryParser;
+        $this->interfaceQueryParser->setPersister($this->getQueryPersister());
         return $this;
     }
 
