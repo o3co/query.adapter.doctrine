@@ -60,7 +60,7 @@ class EntityRepository extends BaseEntityRepository
         // Update ConditionalClause with BaseQuery
         if($baseQuery) {
             if($queryParser = $this->getInterfaceQueryParser()) {
-                $conditionalClause = $queryParser->parseCondition($baseQuery);
+                $conditionalClause = $queryParser->parseConditionalClause($queryParser->createLexer($baseQuery));
 
                 if($query->getStatement()->hasClause('condition')) {
                     $criteriaCondition = $query->getStatement()->getClause('condition')->getExpression();
@@ -69,7 +69,7 @@ class EntityRepository extends BaseEntityRepository
                     }
                 }
 
-                $query->setClause(
+                $query->getStatement()->setClause(
                         'condition', 
                         $conditionalClause
                     );
@@ -106,13 +106,13 @@ class EntityRepository extends BaseEntityRepository
      */
     public function findBy(array $criteria, array $orderBy = array(), $limit = null, $offset = null)
     {
-        $criteriaParser = $this->getCriteriaParser();
+        $criteriaParser = $this->getInterfaceCriteriaParser();
         if(!$criteriaParser) {
             parent::findBy($criteria, $orderBy, $limit, $offset);
         }
 
         // merge conditions into criteria.
-        $query = $this->getCriteriaParser()->parse($criteria, $orderBy, $limit, $offset);
+        $query = $this->createInterfaceQuery($criteria, $orderBy, $limit, $offset);
 
         return $query->getNativeQuery()->getResult();
     }
